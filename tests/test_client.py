@@ -63,3 +63,52 @@ def test_get_company_no_token():
     client = Client(token=None)
     with pytest.raises(RNEAuthError, match="rne login"):
         client.get_company("732829320")
+
+
+def test_search_single_page(mock_transport, load_fixture):
+    fixture = load_fixture("search_results.json")
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/api/companies"
+        assert request.url.params["companyName"] == "danone"
+        return httpx.Response(200, json=fixture)
+
+    client = Client(token="jwt", transport=mock_transport(handler))
+    results = client.search("danone", limit=20)
+    assert len(results) == 2
+
+
+def test_search_paginates_until_limit(mock_transport):
+    call_count = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        call_count["n"] += 1
+        page = int(request.url.params["page"])
+        if page <= 3:
+            items = [{"siren": f"{page:03d}{i:06d}"} for i in range(20)]
+        else:
+            items = []
+        return httpx.Response(200, json=items)
+
+    client = Client(token="jwt", transport=mock_transport(handler))
+    results = client.search("big", limit=50)
+    assert len(results) == 50
+    assert call_count["n"] >= 2
+
+
+def test_search_stops_on_empty_page(mock_transport):
+    def handler(request: httpx.Request) -> httpx.Response:
+        page = int(request.url.params["page"])
+        if page == 1:
+            return httpx.Response(200, json=[{"siren": "111111111"}])
+        return httpx.Response(200, json=[])
+
+    client = Client(token="jwt", transport=mock_transport(handler))
+    results = client.search("rare", limit=100)
+    assert len(results) == 1
+
+
+def test_search_limit_zero_rejected():
+    client = Client(token="jwt")
+    with pytest.raises(RNEValidationError, match="limit"):
+        client.search("x", limit=0)

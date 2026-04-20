@@ -105,3 +105,28 @@ class Client:
         resp = self._get(f"/companies/{siren}")
         self._check(resp, f"Aucune entreprise trouvée pour le SIREN {siren}. Vérifie le numéro (9 chiffres).")
         return resp.json()
+
+    # -------- Search --------
+    PAGE_SIZE = 20  # fixé : on ne surcharge pas l'API
+
+    def search(self, company_name: str, limit: int = 20) -> list[dict]:
+        if limit < 1 or limit > 100:
+            raise RNEValidationError(
+                f"limit doit être entre 1 et 100 (reçu : {limit})."
+            )
+        results: list[dict] = []
+        page = 1
+        while len(results) < limit:
+            resp = self._get(
+                "/companies",
+                params={"companyName": company_name, "page": page, "pageSize": self.PAGE_SIZE},
+            )
+            self._check(resp, f"Aucun résultat pour '{company_name}'.")
+            items = resp.json()
+            if not items:
+                break
+            results.extend(items)
+            if len(items) < self.PAGE_SIZE:
+                break
+            page += 1
+        return results[:limit]
