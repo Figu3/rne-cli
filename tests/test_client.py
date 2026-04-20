@@ -126,3 +126,18 @@ def test_get_attachments(mock_transport, load_fixture):
     assert "bilans" in data
     assert "actes" in data
     assert len(data["bilans"]) == 1
+
+
+def test_get_history(mock_transport):
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/api/companies/diff"
+        assert request.url.params["siren[]"] == "732829320"
+        assert request.url.params["from"] == "2024-01-01"
+        assert request.url.params["to"] == "2024-12-31"
+        return httpx.Response(200, json=[
+            {"siren": "732829320", "submitDate": "2024-03-15", "change": "denomination"}
+        ])
+
+    client = Client(token="jwt", transport=mock_transport(handler))
+    changes = client.get_history("732829320", date_from="2024-01-01", date_to="2024-12-31")
+    assert len(changes) == 1

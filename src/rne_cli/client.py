@@ -137,3 +137,13 @@ class Client:
         self._check(resp, f"Aucune pièce jointe trouvée pour le SIREN {siren}.")
         data = resp.json()
         return {"bilans": data.get("bilans", []), "actes": data.get("actes", [])}
+
+    # -------- History / diff --------
+    def get_history(self, siren: str, date_from: str, date_to: str) -> list[dict]:
+        resp = self._get(
+            "/companies/diff",
+            params={"siren[]": siren, "from": date_from, "to": date_to, "pageSize": 100},
+        )
+        self._check(resp, f"Aucun historique trouvé pour le SIREN {siren}.")
+        data = resp.json()
+        return data if isinstance(data, list) else data.get("results", [])
