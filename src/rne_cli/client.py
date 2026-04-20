@@ -130,3 +130,10 @@ class Client:
                 break
             page += 1
         return results[:limit]
+
+    # -------- Attachments (bilans + actes) --------
+    def get_attachments(self, siren: str) -> dict:
+        resp = self._get(f"/companies/{siren}/attachments")
+        self._check(resp, f"Aucune pièce jointe trouvée pour le SIREN {siren}.")
+        data = resp.json()
+        return {"bilans": data.get("bilans", []), "actes": data.get("actes", [])}

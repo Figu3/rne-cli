@@ -112,3 +112,17 @@ def test_search_limit_zero_rejected():
     client = Client(token="jwt")
     with pytest.raises(RNEValidationError, match="limit"):
         client.search("x", limit=0)
+
+
+def test_get_attachments(mock_transport, load_fixture):
+    fixture = load_fixture("attachments.json")
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/api/companies/732829320/attachments"
+        return httpx.Response(200, json=fixture)
+
+    client = Client(token="jwt", transport=mock_transport(handler))
+    data = client.get_attachments("732829320")
+    assert "bilans" in data
+    assert "actes" in data
+    assert len(data["bilans"]) == 1
