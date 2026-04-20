@@ -66,3 +66,42 @@ class Client:
         if not token:
             raise RNENetworkError("Réponse INPI sans token.")
         return token
+
+    # -------- Helpers --------
+    def _auth_headers(self) -> dict[str, str]:
+        if not self.token:
+            raise RNEAuthError("Pas de token INPI configuré. Lance 'rne login' pour t'authentifier.")
+        return {"Authorization": f"Bearer {self.token}"}
+
+    def _get(self, path: str, params: dict | None = None) -> httpx.Response:
+        """`path` must be api-relative, e.g. '/companies/732829320'. The API prefix
+        is added here so callers don't have to remember it."""
+        try:
+            resp = self._http.get(
+                f"{API_PREFIX}{path}",
+                params=params,
+                headers=self._auth_headers(),
+            )
+        except httpx.TimeoutException as e:
+            raise RNENetworkError("Connexion INPI trop lente. Réessaie dans un instant.") from e
+        except httpx.HTTPError as e:
+            raise RNENetworkError(f"Erreur réseau INPI : {e}") from e
+        return resp
+
+    def _check(self, resp: httpx.Response, not_found_msg: str) -> None:
+        if resp.status_code == 401:
+            raise RNEAuthError("Token INPI expiré ou invalide. Lance 'rne login' pour le renouveler.")
+        if resp.status_code == 404:
+            raise RNENotFoundError(not_found_msg)
+        if resp.status_code == 429:
+            raise RNENetworkError("Quota INPI atteint, réessaie plus tard.")
+        if resp.status_code >= 500:
+            raise RNENetworkError(f"Service INPI indisponible ({resp.status_code}).")
+        if resp.status_code != 200:
+            raise RNENetworkError(f"Réponse INPI inattendue ({resp.status_code}).")
+
+    # -------- Company --------
+    def get_company(self, siren: str) -> dict:
+        resp = self._get(f"/companies/{siren}")
+        self._check(resp, f"Aucune entreprise trouvée pour le SIREN {siren}. Vérifie le numéro (9 chiffres).")
+        return resp.json()
