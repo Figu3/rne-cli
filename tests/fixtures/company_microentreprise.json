@@ -1,0 +1,16 @@
+{
+  "siren": "900000001",
+  "formality": {
+    "content": {
+      "personneMorale": {
+        "identite": {
+          "entreprise": {
+            "denomination": "MICRO ENTREPRENEUR",
+            "formeJuridique": "5710",
+            "dateCreation": "1909-01-01"
+          }
+        }
+      }
+    }
+  }
+}

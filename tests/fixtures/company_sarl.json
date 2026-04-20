@@ -1,0 +1,16 @@
+{
+  "siren": "552032534",
+  "formality": {
+    "content": {
+      "personneMorale": {
+        "identite": {
+          "entreprise": {
+            "denomination": "CARREFOUR SARL",
+            "formeJuridique": "5710",
+            "dateCreation": "1909-01-01"
+          }
+        }
+      }
+    }
+  }
+}

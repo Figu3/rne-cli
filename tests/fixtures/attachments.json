@@ -1,0 +1,8 @@
+{
+  "bilans": [
+    {"id": "bil1", "dateDepot": "2024-06-30", "dateCloture": "2023-12-31", "typeBilan": "Comptes annuels"}
+  ],
+  "actes": [
+    {"id": "act1", "dateDepot": "2024-03-15", "nomDocument": "Statuts mis à jour", "typeActe": "STATUTS"}
+  ]
+}
