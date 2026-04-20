@@ -29,3 +29,26 @@ def test_render_company_missing_fields_graceful():
     # Protocol resilience: missing nested keys shouldn't crash
     out = _capture(render_company, {"siren": "000000000"})
     assert "000000000" in out
+
+
+def test_render_search_results_shows_all():
+    results = json.loads((FIXTURES_DIR / "search_results.json").read_text())
+    out = _capture(render_search_results, results)
+    assert "L'OREAL" in out
+    assert "DANONE" in out
+
+
+def test_render_search_results_empty():
+    out = _capture(render_search_results, [])
+    assert "Aucun" in out
+
+
+def test_render_attachments_bilans():
+    data = json.loads((FIXTURES_DIR / "attachments.json").read_text())
+    out = _capture(render_attachments, "bilan(s)", data["bilans"])
+    assert "bil1" in out
+
+
+def test_render_history_empty():
+    out = _capture(render_history, [])
+    assert "Aucune" in out
