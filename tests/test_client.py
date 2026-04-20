@@ -141,3 +141,31 @@ def test_get_history(mock_transport):
     client = Client(token="jwt", transport=mock_transport(handler))
     changes = client.get_history("732829320", date_from="2024-01-01", date_to="2024-12-31")
     assert len(changes) == 1
+
+
+def test_cache_hit_avoids_second_call(mock_transport, fake_home, load_fixture):
+    fixture = load_fixture("company_sas.json")
+    call_count = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        call_count["n"] += 1
+        return httpx.Response(200, json=fixture)
+
+    c = Client(token="jwt", transport=mock_transport(handler), use_cache=True)
+    c.get_company("732829320")
+    c.get_company("732829320")
+    assert call_count["n"] == 1  # second call was served from cache
+
+
+def test_no_cache_flag_refetches(mock_transport, fake_home, load_fixture):
+    fixture = load_fixture("company_sas.json")
+    call_count = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        call_count["n"] += 1
+        return httpx.Response(200, json=fixture)
+
+    c = Client(token="jwt", transport=mock_transport(handler), use_cache=False)
+    c.get_company("732829320")
+    c.get_company("732829320")
+    assert call_count["n"] == 2

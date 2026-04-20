@@ -23,9 +23,13 @@ class Client:
         base_url: str = BASE_URL,
         transport: httpx.BaseTransport | None = None,
         timeout: float = DEFAULT_TIMEOUT,
+        use_cache: bool = True,
+        cache_ttl: int = 24 * 3600,
     ):
         self.base_url = base_url
         self.token = token
+        self.use_cache = use_cache
+        self.cache_ttl = cache_ttl
         self._http = httpx.Client(
             base_url=base_url,
             transport=transport,
@@ -100,11 +104,30 @@ class Client:
         if resp.status_code != 200:
             raise RNENetworkError(f"Réponse INPI inattendue ({resp.status_code}).")
 
+    def _cached_get_json(self, path: str, params: dict | None, not_found_msg: str):
+        """Lit depuis le cache si use_cache et frais. Écrit toujours (même si
+        use_cache=False) pour que le prochain appel bénéficie du cache — cf
+        spec §5.2: '--no-cache force refetch mais réécrit le cache'."""
+        from rne_cli.cache import cache_get, cache_key, cache_put
+        params = params or {}
+        key = cache_key("GET", path, params)
+        if self.use_cache:
+            cached = cache_get(key, ttl_seconds=self.cache_ttl)
+            if cached is not None:
+                return cached
+        resp = self._get(path, params=params)
+        self._check(resp, not_found_msg)
+        data = resp.json()
+        cache_put(key, data)  # always write, regardless of use_cache
+        return data
+
     # -------- Company --------
     def get_company(self, siren: str) -> dict:
-        resp = self._get(f"/companies/{siren}")
-        self._check(resp, f"Aucune entreprise trouvée pour le SIREN {siren}. Vérifie le numéro (9 chiffres).")
-        return resp.json()
+        return self._cached_get_json(
+            f"/companies/{siren}",
+            params=None,
+            not_found_msg=f"Aucune entreprise trouvée pour le SIREN {siren}. Vérifie le numéro (9 chiffres).",
+        )
 
     # -------- Search --------
     PAGE_SIZE = 20  # fixé : on ne surcharge pas l'API
@@ -117,12 +140,11 @@ class Client:
         results: list[dict] = []
         page = 1
         while len(results) < limit:
-            resp = self._get(
+            items = self._cached_get_json(
                 "/companies",
                 params={"companyName": company_name, "page": page, "pageSize": self.PAGE_SIZE},
+                not_found_msg=f"Aucun résultat pour '{company_name}'.",
             )
-            self._check(resp, f"Aucun résultat pour '{company_name}'.")
-            items = resp.json()
             if not items:
                 break
             results.extend(items)
@@ -133,17 +155,18 @@ class Client:
 
     # -------- Attachments (bilans + actes) --------
     def get_attachments(self, siren: str) -> dict:
-        resp = self._get(f"/companies/{siren}/attachments")
-        self._check(resp, f"Aucune pièce jointe trouvée pour le SIREN {siren}.")
-        data = resp.json()
+        data = self._cached_get_json(
+            f"/companies/{siren}/attachments",
+            params=None,
+            not_found_msg=f"Aucune pièce jointe trouvée pour le SIREN {siren}.",
+        )
         return {"bilans": data.get("bilans", []), "actes": data.get("actes", [])}
 
     # -------- History / diff --------
     def get_history(self, siren: str, date_from: str, date_to: str) -> list[dict]:
-        resp = self._get(
+        data = self._cached_get_json(
             "/companies/diff",
             params={"siren[]": siren, "from": date_from, "to": date_to, "pageSize": 100},
+            not_found_msg=f"Aucun historique trouvé pour le SIREN {siren}.",
         )
-        self._check(resp, f"Aucun historique trouvé pour le SIREN {siren}.")
-        data = resp.json()
         return data if isinstance(data, list) else data.get("results", [])
