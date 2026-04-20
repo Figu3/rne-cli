@@ -51,12 +51,13 @@ Base URL production : `https://registre-national-entreprises.inpi.fr/api`
 
 Authentification : header `Authorization: Bearer <JWT>` sur tout sauf `/sso/login`.
 
-Codes HTTP attendus :
+Codes HTTP et erreurs transport attendus :
 - 200 OK
 - 401 token manquant/expiré → `RNEAuthError`
 - 404 SIREN inconnu → `RNENotFoundError`
 - 429 rate limit → `RNENetworkError` avec message « quota INPI atteint, réessaie plus tard »
 - 5xx → `RNENetworkError`
+- `httpx.TimeoutException`, `httpx.ConnectError`, `httpx.RemoteProtocolError` → `RNENetworkError` avec message « Connexion INPI impossible ou lente. Vérifie ta connexion réseau. »
 
 Quotas documentés par INPI : 10 000 requêtes/jour et 10 Go/jour par compte (tier standard gratuit). Rien à gérer proactivement côté CLI ; on laisse remonter le 429 si ça tape.
 
@@ -105,7 +106,8 @@ rne-cli/
 
 ```
 main.py (Typer)
-  ├── @app.callback() : lit --json, --no-cache, --verbose → stocke dans ctx.obj
+  ├── @app.callback() : lit les flags globaux --json / --no-cache / --verbose
+  │                     → stocke {"json": bool, "no_cache": bool, "verbose": bool} dans ctx.obj
   ├── error_handler : wrap chaque commande, map RNEError → message FR + exit code
   │
   └── commands/*.py
@@ -124,7 +126,7 @@ main.py (Typer)
 ### 5.1. Authentification (option 3 — dual-mode)
 
 - `rne login` (interactif) : prompt email (visible) + `getpass` password (masqué) → POST `/sso/login` → stocke `{token, email, saved_at}` dans `~/.rne/config.toml` avec `chmod 0600`.
-- `rne login --token <JWT>` : stocke directement le token fourni, sans appel API. `email` laissé vide. Utile pour CI / scripts.
+- `rne login --token <JWT>` : stocke directement le token fourni, sans appel API. `email` laissé vide. Utile pour CI / scripts. Contrepartie : un token invalide ne sera détecté qu'au premier vrai appel (on ne valide pas pro-activement pour rester offline). Acceptable pour V1. En V2 on pourra ajouter `rne whoami --validate` qui tape un GET léger.
 - `rne logout` : supprime `~/.rne/config.toml`.
 - `rne whoami` : affiche `email` et date de sauvegarde. Si pas de token → message actionnable « lance `rne login` ».
 - Sur 401 en cours d'usage : `RNEAuthError` → message « Token INPI expiré ou invalide. Lance `rne login` pour le renouveler. » + exit 1.
@@ -139,12 +141,13 @@ main.py (Typer)
 - Hit : renvoie `data`. Miss ou expiré : refetch + rewrite.
 - `--no-cache` : force refetch (mais réécrit le cache pour la prochaine fois).
 - Invalidation manuelle : `rm -rf ~/.rne/cache/` (documenté dans `--help`). Pas de commande `rne cache clear` en V1 (YAGNI).
+- **Interaction avec la pagination** : chaque page (`page=1`, `page=2`, ...) est cachée indépendamment. C'est volontaire : si `search` a déjà ramené page 1 et 2 hier et qu'on relance aujourd'hui avec `--limit 40`, on sert page 1 et 2 depuis le cache et on ne refetch que page 3+. Conséquence acceptée : les résultats peuvent mélanger des pages de fraîcheurs différentes dans la même commande. Non-bug, ne pas « corriger ».
 
 ### 5.3. Pagination
 
 - `client.iter_pages(endpoint, params, limit)` : générateur qui boucle sur `page=1, 2, ...` jusqu'à atteindre `limit` résultats ou page vide (`len(results) == 0`).
 - Commandes reçoivent une liste plate (déjà tronquée à `limit`).
-- Défaut `--limit 20`, max 100, min 1.
+- Défaut `--limit 20`, max 100, min 1. `--limit 0` ou négatif → `RNEValidationError` avant tout appel réseau.
 - `pageSize` envoyé à l'API = 20 (fixe, on ne surcharge pas l'API avec des gros pages si le user veut 10 résultats).
 
 ### 5.4. Validation SIREN
@@ -224,6 +227,7 @@ Pas de stack trace jamais, sauf `--verbose` (flag global débug).
 - Round-trip save/load TOML
 - Permissions 0600 vérifiées après save
 - Config absente → `None` (pas d'exception)
+- `logout` : après save puis logout, la config est bien supprimée et un load renvoie `None`
 
 `test_siren.py` :
 - 9 chiffres valides → OK
