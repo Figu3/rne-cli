@@ -10,7 +10,7 @@ from rich.console import Console
 
 from rne_cli.commands.company import _make_client
 from rne_cli.format import render_history
-from rne_cli.siren import validate_siren
+from rne_cli.siren import validate_siren, warn_if_luhn_bad
 
 console = Console()
 
@@ -25,6 +25,8 @@ def history_cmd(
     from rne_cli.main import _handle_error
     try:
         siren = validate_siren(siren)
+        if not ctx.obj.get("json"):
+            warn_if_luhn_bad(siren)
         today = date.today()
         date_to = date_to or today.isoformat()
         date_from = date_from or (today - timedelta(days=365)).isoformat()

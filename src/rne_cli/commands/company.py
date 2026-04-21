@@ -11,7 +11,7 @@ from rne_cli.client import Client
 from rne_cli.config import load_config
 from rne_cli.errors import RNEAuthError
 from rne_cli.format import render_company, render_search_results
-from rne_cli.siren import validate_siren
+from rne_cli.siren import validate_siren, warn_if_luhn_bad
 
 console = Console()
 
@@ -31,6 +31,8 @@ def company_cmd(
     from rne_cli.main import _handle_error
     try:
         siren = validate_siren(siren)
+        if not ctx.obj.get("json"):
+            warn_if_luhn_bad(siren)
         with _make_client(ctx) as c:
             data = c.get_company(siren)
         if ctx.obj.get("json"):

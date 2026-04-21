@@ -29,3 +29,19 @@ def luhn_valid(siren: str) -> bool:
                 d -= 9
         total += d
     return total % 10 == 0
+
+
+def check_siren(raw: str) -> tuple[str, bool]:
+    """Valide + informe sur Luhn. Retourne (siren_normalisé, luhn_ok).
+    Lève RNEValidationError si le format 9-chiffres est mauvais."""
+    s = validate_siren(raw)
+    return s, luhn_valid(s)
+
+
+def warn_if_luhn_bad(siren: str) -> None:
+    """Affiche un warning stderr si le SIREN ne passe pas Luhn. Muet sinon."""
+    if not luhn_valid(siren):
+        from rich.console import Console
+        Console(stderr=True).print(
+            f"[yellow]⚠ Le SIREN {siren} ne passe pas la clé Luhn — vérifie qu'il n'y a pas de faute de frappe.[/]"
+        )

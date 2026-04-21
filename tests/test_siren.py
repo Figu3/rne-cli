@@ -34,3 +34,14 @@ class TestLuhn:
 
     def test_invalid_luhn(self):
         assert luhn_valid("123456789") is False
+
+
+def test_check_siren_returns_luhn_status():
+    from rne_cli.siren import check_siren
+    norm, ok = check_siren("732829320")  # L'Oréal, valid Luhn
+    assert norm == "732829320"
+    assert ok is True
+
+    norm, ok = check_siren("123456789")  # invalid Luhn
+    assert norm == "123456789"
+    assert ok is False
