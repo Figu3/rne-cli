@@ -47,7 +47,7 @@ def _handle_error(ctx: typer.Context, exc: Exception) -> None:
         raise exc
     if isinstance(exc, RNEError):
         if ctx.obj.get("json"):
-            err_console.print_json(json.dumps({"error": exc.message, "type": exc.__class__.__name__}))
+            err_console.print_json(json.dumps({"error": exc.message, "code": exc.__class__.__name__}))
         else:
             err_console.print(f"[red]Erreur :[/] {exc.message}")
         raise typer.Exit(code=exc.exit_code)
