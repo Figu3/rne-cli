@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import httpx
 
+from rne_cli import __version__
 from rne_cli.errors import (
     RNEAuthError,
     RNENetworkError,
@@ -34,7 +35,7 @@ class Client:
             base_url=base_url,
             transport=transport,
             timeout=timeout,
-            headers={"User-Agent": "rne-cli/0.1.0"},
+            headers={"User-Agent": f"rne-cli/{__version__}"},
         )
 
     def close(self) -> None:
