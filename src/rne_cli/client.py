@@ -55,6 +55,8 @@ class Client:
             )
         except httpx.TimeoutException as e:
             raise RNENetworkError("Connexion INPI trop lente. Réessaie dans un instant.") from e
+        except (httpx.ConnectError, httpx.RemoteProtocolError) as e:
+            raise RNENetworkError("Connexion INPI impossible ou lente. Vérifie ta connexion réseau.") from e
         except httpx.HTTPError as e:
             raise RNENetworkError(f"Erreur réseau INPI : {e}") from e
 
@@ -88,6 +90,8 @@ class Client:
             )
         except httpx.TimeoutException as e:
             raise RNENetworkError("Connexion INPI trop lente. Réessaie dans un instant.") from e
+        except (httpx.ConnectError, httpx.RemoteProtocolError) as e:
+            raise RNENetworkError("Connexion INPI impossible ou lente. Vérifie ta connexion réseau.") from e
         except httpx.HTTPError as e:
             raise RNENetworkError(f"Erreur réseau INPI : {e}") from e
         return resp

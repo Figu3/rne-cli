@@ -169,3 +169,14 @@ def test_no_cache_flag_refetches(mock_transport, fake_home, load_fixture):
     c.get_company("732829320")
     c.get_company("732829320")
     assert call_count["n"] == 2
+
+
+def test_login_connect_error_friendly_message(mock_transport):
+    from rne_cli.errors import RNENetworkError
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("DNS failure", request=request)
+
+    client = Client(transport=mock_transport(handler))
+    with pytest.raises(RNENetworkError, match="connexion réseau"):
+        client.login("x@y", "pw")
