@@ -17,10 +17,16 @@ console = Console()
 
 
 def _make_client(ctx: typer.Context) -> Client:
+    import os
     cfg = load_config()
     if cfg is None or not cfg.token:
         raise RNEAuthError("Pas de token INPI configuré. Lance 'rne login' pour t'authentifier.")
-    return Client(token=cfg.token, use_cache=not ctx.obj.get("no_cache", False))
+    ttl = int(os.environ.get("RNE_CACHE_TTL", 24 * 3600))
+    return Client(
+        token=cfg.token,
+        use_cache=not ctx.obj.get("no_cache", False),
+        cache_ttl=ttl,
+    )
 
 
 def company_cmd(

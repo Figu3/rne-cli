@@ -50,7 +50,7 @@ Claude va lancer `rne search "L'Oréal" --json` pour trouver le SIREN, puis `rne
 
 - Token : `~/.rne/config.toml` (permissions 0600)
 - Cache : `~/.rne/cache/` (TTL 24h, efface avec `rm -rf ~/.rne/cache/`)
-- Flags globaux : `--json`, `--no-cache`, `--verbose`
+- Flags globaux : `--json`, `--no-cache`, `--verbose`, `--version`
 
 ## Limites V1
 
